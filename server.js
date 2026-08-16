@@ -17,7 +17,7 @@ const openai = new OpenAI({
 
 app.post("/api/submit", async (req, res) => {
   try {
-    const { prompt } = req.body;
+    const { prompt, size, quality } = req.body;
 
     if (!prompt) {
       return res.status(400).json({
@@ -27,7 +27,10 @@ app.post("/api/submit", async (req, res) => {
 
     const result = await openai.images.generate({
       model: "gpt-image-2",
-      prompt: prompt,
+      prompt,
+      size,
+      quality,
+      output_format: "png",
     });
 
     const imageBase64 = result.data[0].b64_json;
