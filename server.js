@@ -1,6 +1,6 @@
 const express = require("express");
 const cors = require("cors");
-const OpenAI = require("openai");
+const multer = require("multer");
 
 require("dotenv").config();
 
@@ -8,43 +8,51 @@ const PORT = process.env.PORT || 5000;
 
 const app = express();
 
+const imageRoutes = require("./routes/imageRoutes.js");
+
 app.use(express.json());
 app.use(cors());
 
-const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY,
+const upload = multer({
+  storage: multer.memoryStorage(),
 });
 
-app.post("/api/submit", async (req, res) => {
-  try {
-    const { prompt, size, quality } = req.body;
+app.use("/api/image", imageRoutes);
 
-    if (!prompt) {
-      return res.status(400).json({
-        error: "Please provide a prompt.",
-      });
-    }
+// app.post("/api/submit", async (req, res) => {
+//   try {
+//     const { prompt, size, quality, quantity } = req.body;
 
-    const result = await openai.images.generate({
-      model: "gpt-image-2",
-      prompt,
-      size,
-      quality,
-      output_format: "png",
-    });
+//     if (!prompt) {
+//       return res.status(400).json({
+//         error: "Please provide a prompt.",
+//       });
+//     }
 
-    const imageBase64 = result.data[0].b64_json;
+//     const result = await openai.images.generate({
+//       model: "gpt-image-2",
+//       n: Number(quantity),
+//       prompt,
+//       size,
+//       quality,
+//       output_format: "png",
+//     });
 
-    res.json({
-      image: imageBase64,
-    });
-  } catch (error) {
-    console.error(error);
+//     res.json({
+//       images: result.data.map((image) => image.b64_json),
+//     });
+//   } catch (error) {
+//     console.error(error);
 
-    res.status(500).json({
-      error: "Something went wrong while generating the image.",
-    });
-  }
+//     res.status(500).json({
+//       error: "Something went wrong while generating the image.",
+//     });
+//   }
+// });
+
+app.post("/api/edit", upload.single("image"), async (req, res) => {
+  console.log(req.file);
+  console.log(req.body);
 });
 
 app.listen(PORT, () => console.log("express app running..." + PORT));
