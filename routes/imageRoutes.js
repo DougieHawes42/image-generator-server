@@ -10,6 +10,7 @@ const upload = multer({
 });
 
 router.post("/submit", async (req, res) => {
+  console.log("🔥 /api/image/submit REQUEST RECEIVED");
   try {
     const { prompt, size, quality, quantity } = req.body;
 
@@ -36,10 +37,11 @@ router.post("/submit", async (req, res) => {
       images: result.data.map((image) => image.b64_json),
     });
   } catch (error) {
-    console.error(error);
+    console.error("OpenAI error:", error);
 
-    res.status(500).json({
-      error: "Something went wrong while generating the image.",
+    res.status(error.status || 500).json({
+      error:
+        error.message || "Something went wrong while generating the image.",
     });
   }
 });
