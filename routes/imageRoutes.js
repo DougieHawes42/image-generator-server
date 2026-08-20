@@ -37,7 +37,11 @@ router.post("/submit", async (req, res) => {
       images: result.data.map((image) => image.b64_json),
     });
   } catch (error) {
-    console.error("OpenAI error:", error);
+    console.error("Image generation failed:", {
+      message: error.message,
+      status: error.status,
+      code: error.code,
+    });
 
     res.status(error.status || 500).json({
       error:
