@@ -30,6 +30,7 @@ router.post("/submit", async (req, res) => {
       prompt,
       size,
       quality,
+      moderation: "low",
       output_format: "png",
     });
 
@@ -115,6 +116,7 @@ ${prompt}
       image: imageFile,
       prompt: avatarPrompt,
       n: Number(quantity),
+      moderation: "low",
       size,
       quality,
       output_format: "png",
