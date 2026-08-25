@@ -10,7 +10,6 @@ const upload = multer({
 });
 
 router.post("/submit", async (req, res) => {
-  console.log("🔥 /api/image/submit REQUEST RECEIVED");
   try {
     const { prompt, size, quality, quantity } = req.body;
 
@@ -26,7 +25,7 @@ router.post("/submit", async (req, res) => {
 
     const result = await openai.images.generate({
       model: "gpt-image-2",
-      n: Number(quantity),
+      n: Number(quantity) || 1,
       prompt,
       size,
       quality,
