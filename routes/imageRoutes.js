@@ -49,18 +49,13 @@ router.post("/submit", async (req, res) => {
     });
   }
 });
-router.post("/avatar", upload.single("image"), async (req, res) => {
+router.post("/images-to-image", upload.array("images"), async (req, res) => {
   try {
-    console.log(req.body);
-
     const { prompt, size, quality, quantity } = req.body || {};
 
-    console.log("AVATAR FILE:", req.file);
-    console.log("AVATAR BODY:", req.body);
-
-    if (!req.file) {
+    if (!req.files || req.files.length === 0) {
       return res.status(400).json({
-        error: "Please provide an image.",
+        error: "Please provide at least one image.",
       });
     }
 
@@ -74,31 +69,39 @@ router.post("/avatar", upload.single("image"), async (req, res) => {
       apiKey: process.env.OPENAI_API_KEY,
     });
 
-    const imageFile = await toFile(req.file.buffer, req.file.originalname, {
-      type: req.file.mimetype,
-    });
+    const imageFiles = await Promise.all(
+      req.files.map((file) =>
+        toFile(file.buffer, file.originalname, {
+          type: file.mimetype,
+        }),
+      ),
+    );
 
-    console.log("IMAGE FILE CREATED");
-
-    const avatarPrompt = `
+    const imagePrompt = `
 Create a high-quality fictional character portrait based on the person
-shown in the supplied reference image.
+shown across the supplied reference images.
 
-Use the supplied image as the primary visual reference for the person's
-identity. Preserve their recognizable facial characteristics, including
-their overall face shape, facial proportions, eyes, nose, mouth, jawline,
+Use all supplied images together as visual references for the person's
+identity and appearance.
+
+The reference images may show the person from different angles,
+expressions, lighting conditions, or distances. Use the combined
+information from all references to produce the most accurate and
+consistent representation of the person possible.
+
+Preserve their recognizable facial characteristics, including their
+overall face shape, facial proportions, eyes, nose, mouth, jawline,
 skin tone, hair characteristics, and other distinctive facial features.
+
+Treat the supplied images as references for the same individual.
+Do not combine different people or interpret the reference images as
+different characters.
 
 The generated character should clearly resemble the same person while
 being transformed into the requested character concept.
 
-Keep the person's identity and facial likeness consistent with the
-reference image. Do not unnecessarily alter their facial structure or
-make them look like a different person.
-
-Transform their clothing, hairstyle where appropriate, environment,
-lighting, accessories, and overall visual styling according to the
-user's requested concept.
+Transform their clothing, environment, accessories, lighting, and
+overall visual styling according to the user's requested concept.
 
 Create a polished, realistic cinematic character portrait suitable for
 a fantasy RPG or cinematic character concept.
@@ -112,8 +115,8 @@ ${prompt}
 
     const result = await openai.images.edit({
       model: "gpt-image-1.5",
-      image: imageFile,
-      prompt: avatarPrompt,
+      image: imageFiles[0],
+      prompt: imagePrompt,
       n: Number(quantity),
       moderation: "low",
       size,
@@ -139,4 +142,5 @@ ${prompt}
     });
   }
 });
+
 module.exports = router;
