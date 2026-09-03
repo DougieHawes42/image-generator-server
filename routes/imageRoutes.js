@@ -2,6 +2,7 @@ const express = require("express");
 const OpenAI = require("openai");
 const { toFile } = require("openai");
 const multer = require("multer");
+const RunwayML = require("@runwayml/sdk");
 
 const router = express.Router();
 
@@ -77,5 +78,39 @@ router.post("/images-to-image", upload.array("images"), async (req, res) => {
     images: result.data.map((image) => image.b64_json),
   });
 });
+router.post(
+  "/image-to-video",
+  upload.fields([
+    { name: "startImage", maxCount: 1 },
+    { name: "endImage", maxCount: 1 },
+  ]),
+  async (req, res) => {
+    const startImage = req.files.startImage[0];
+
+    const startImageDataUri = `data:${startImage.mimetype};base64,${startImage.buffer.toString("base64")}`;
+
+    console.log("PROMPT BEING SENT:", req.body.prompt);
+
+    const runway = new RunwayML({
+      apiKey: process.env.RUNWAYML_API_KEY,
+    });
+
+    const video = await runway.imageToVideo
+      .create({
+        model: "gen4.5",
+        promptImage: startImageDataUri,
+        promptText: req.body.prompt,
+        ratio: "1280:720",
+        duration: 5,
+      })
+      .waitForTaskOutput();
+
+    console.log("RUNWAY VIDEO COMPLETE:", video);
+
+    res.json({
+      videoUrl: video.output[0],
+    });
+  },
+);
 
 module.exports = router;
