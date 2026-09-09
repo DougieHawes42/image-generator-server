@@ -4,6 +4,10 @@ const { toFile } = require("openai");
 const multer = require("multer");
 const RunwayML = require("@runwayml/sdk");
 
+const openai = new OpenAI({
+  apiKey: process.env.OPENAI_API_KEY,
+});
+
 const router = express.Router();
 
 const upload = multer({
@@ -13,10 +17,6 @@ const upload = multer({
 router.post("/submit", async (req, res) => {
   try {
     const { prompt, size, quality, quantity } = req.body;
-
-    const openai = new OpenAI({
-      apiKey: process.env.OPENAI_API_KEY,
-    });
 
     if (!prompt) {
       return res.status(400).json({
@@ -72,8 +72,6 @@ router.post("/images-to-image", upload.array("images"), async (req, res) => {
     output_format: "png",
   });
 
-  console.log("OPENAI RESPONSE RECEIVED");
-
   res.json({
     images: result.data.map((image) => image.b64_json),
   });
@@ -88,8 +86,6 @@ router.post(
     const startImage = req.files.startImage[0];
 
     const startImageDataUri = `data:${startImage.mimetype};base64,${startImage.buffer.toString("base64")}`;
-
-    console.log("PROMPT BEING SENT:", req.body.prompt);
 
     const runway = new RunwayML({
       apiKey: process.env.RUNWAYML_API_KEY,
@@ -112,5 +108,46 @@ router.post(
     });
   },
 );
+
+router.post("/improve", async (req, res) => {
+  try {
+    const { prompt } = req.body;
+
+    if (!prompt) {
+      return res.status(400).json({
+        error: "Please provide a prompt.",
+      });
+    }
+
+    const response = await openai.responses.create({
+      model: "gpt-5.6-luna",
+      instructions: `
+        You are an expert image-generation prompt writer.
+
+        Improve the user's prompt so it is:
+        - clear
+        - specific
+        - visually descriptive
+        - useful for an image-generation model
+
+        Preserve the user's original intent.
+        Do not change the subject unnecessarily.
+        Do not add unrelated objects or concepts.
+
+        Return ONLY the improved image prompt.
+      `,
+      input: prompt,
+    });
+
+    res.json({
+      prompt: response.output_text,
+    });
+  } catch (error) {
+    res.status(error.status || 500).json({
+      error:
+        error.message || "Something went wrong while improving the prompt.",
+    });
+  }
+});
 
 module.exports = router;
