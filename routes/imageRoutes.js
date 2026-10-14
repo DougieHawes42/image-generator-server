@@ -4,6 +4,8 @@ const { toFile } = require("openai");
 const multer = require("multer");
 const RunwayML = require("@runwayml/sdk");
 
+const getThemePrompt = require("../controllers/getThemePrompt");
+
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
 });
@@ -16,7 +18,24 @@ const upload = multer({
 
 router.post("/submit", async (req, res) => {
   try {
-    const { prompt, size, quality, quantity } = req.body;
+    const { prompt, theme, size, quality, quantity } = req.body;
+
+    if (!prompt && !theme) {
+      return res.status(400).json({
+        error: "Please provide a prompt and/or theme.",
+      });
+    }
+    if (!req.files || req.files.length === 0) {
+      return res.status(400).json({
+        error: "Please provide at least one image.",
+      });
+    }
+
+    const finalPrompt = `
+      ${prompt}
+
+      ${getThemePrompt(theme)}
+    `.trim();
 
     if (!prompt) {
       return res.status(400).json({
@@ -27,7 +46,7 @@ router.post("/submit", async (req, res) => {
     const result = await openai.images.generate({
       model: "gpt-image-2",
       n: Number(quantity) || 1,
-      prompt,
+      prompt: finalPrompt,
       size,
       quality,
       moderation: "low",
@@ -50,7 +69,9 @@ router.post("/submit", async (req, res) => {
     });
   }
 });
+
 router.post("/images-to-image", upload.array("images"), async (req, res) => {
+  const { prompt, theme, size, quality, quantity } = req.body;
   const imageFiles = await Promise.all(
     req.files.map((file) =>
       toFile(file.buffer, file.originalname, {
@@ -59,15 +80,21 @@ router.post("/images-to-image", upload.array("images"), async (req, res) => {
     ),
   );
 
+  const finalPrompt = `
+      ${prompt}
+
+      ${getThemePrompt(theme)}
+    `.trim();
+
   const result = await new OpenAI({
     apiKey: process.env.OPENAI_API_KEY,
   }).images.edit({
     model: "gpt-image-1.5",
     image: imageFiles,
-    prompt: req.body.prompt,
-    n: Number(req.body.quantity),
-    size: req.body.size,
-    quality: req.body.quality || "medium",
+    prompt: finalPrompt,
+    n: Number(quantity),
+    size,
+    quality: quality || "medium",
     moderation: "low",
     output_format: "png",
   });
@@ -76,6 +103,7 @@ router.post("/images-to-image", upload.array("images"), async (req, res) => {
     images: result.data.map((image) => image.b64_json),
   });
 });
+
 router.post(
   "/image-to-video",
   upload.fields([
