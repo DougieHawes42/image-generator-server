@@ -32,9 +32,8 @@ router.post("/submit", async (req, res) => {
     }
 
     const finalPrompt = `
-      ${prompt}
-
       ${getThemePrompt(theme)}
+      ${prompt}
     `.trim();
 
     if (!prompt) {
@@ -81,9 +80,8 @@ router.post("/images-to-image", upload.array("images"), async (req, res) => {
   );
 
   const finalPrompt = `
-      ${prompt}
-
       ${getThemePrompt(theme)}
+      ${prompt}
     `.trim();
 
   const result = await new OpenAI({
