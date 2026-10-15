@@ -12,7 +12,9 @@
   "license": "ISC",
   "type": "commonjs",
   "dependencies": {
+    "@ai-sdk/black-forest-labs": "^2.0.60",
     "@runwayml/sdk": "^4.19.1",
+    "ai": "^7.0.140",
     "cors": "^2.8.6",
     "express": "^5.2.1",
     "multer": "^2.2.0",

@@ -4,6 +4,7 @@ const { toFile } = require("openai");
 const multer = require("multer");
 const RunwayML = require("@runwayml/sdk");
 
+const generateWithFlux = require("../middleware/generateWithFlux");
 const getThemePrompt = require("../controllers/getThemePrompt");
 
 const openai = new OpenAI({
@@ -16,55 +17,108 @@ const upload = multer({
   storage: multer.memoryStorage(),
 });
 
+// router.post("/submit", async (req, res) => {
+//   try {
+//     const { prompt, theme, size, quality, quantity } = req.body;
+
+//     if (!prompt && !theme) {
+//       return res.status(400).json({
+//         error: "Please provide a prompt and/or theme.",
+//       });
+//     }
+
+//     const finalPrompt = `
+//       ${getThemePrompt(theme)}
+//       ${prompt}
+//     `.trim();
+
+//     if (!prompt) {
+//       return res.status(400).json({
+//         error: "Please provide a prompt.",
+//       });
+//     }
+
+//     const result = await openai.images.generate({
+//       model: "gpt-image-2",
+//       n: Number(quantity) || 1,
+//       prompt: finalPrompt,
+//       size,
+//       quality: "low",
+//       moderation: "low",
+//       output_format: "png",
+//     });
+
+//     res.json({
+//       images: result.data.map((image) => image.b64_json),
+//     });
+//   } catch (error) {
+//     console.error("Image generation failed:", {
+//       message: error.message,
+//       status: error.status,
+//       code: error.code,
+//     });
+
+//     res.status(error.status || 500).json({
+//       error:
+//         error.message || "Something went wrong while generating the image.",
+//     });
+//   }
+// });
+
 router.post("/submit", async (req, res) => {
   try {
-    const { prompt, theme, size, quality, quantity } = req.body;
+    const {
+      prompt,
+      theme,
+      size,
+      quality,
+      quantity,
+      provider = "openai",
+    } = req.body;
 
-    if (!prompt && !theme) {
+    const finalPrompt = `
+      ${getThemePrompt(theme)}
+      ${prompt || ""}
+    `.trim();
+
+    if (!finalPrompt) {
       return res.status(400).json({
         error: "Please provide a prompt and/or theme.",
       });
     }
-    if (!req.files || req.files.length === 0) {
+
+    let images;
+
+    if (provider === "flux") {
+      const count = Math.min(Math.max(Number(quantity) || 1, 1), 4);
+
+      images = await Promise.all(
+        Array.from({ length: count }, () => generateWithFlux(finalPrompt)),
+      );
+    } else if (provider === "openai") {
+      const result = await openai.images.generate({
+        model: "gpt-image-2",
+        n: Number(quantity) || 1,
+        prompt: finalPrompt,
+        size,
+        quality,
+        moderation: "low",
+        output_format: "png",
+      });
+
+      images = result.data.map((image) => image.b64_json);
+    } else {
       return res.status(400).json({
-        error: "Please provide at least one image.",
+        error: "Unsupported image provider.",
       });
     }
 
-    const finalPrompt = `
-      ${getThemePrompt(theme)}
-      ${prompt}
-    `.trim();
-
-    if (!prompt) {
-      return res.status(400).json({
-        error: "Please provide a prompt.",
-      });
-    }
-
-    const result = await openai.images.generate({
-      model: "gpt-image-2",
-      n: Number(quantity) || 1,
-      prompt: finalPrompt,
-      size,
-      quality,
-      moderation: "low",
-      output_format: "png",
-    });
-
-    res.json({
-      images: result.data.map((image) => image.b64_json),
-    });
+    res.json({ images });
   } catch (error) {
-    console.error("Image generation failed:", {
-      message: error.message,
-      status: error.status,
-      code: error.code,
-    });
+    console.error("Image generation failed:", error);
 
     res.status(error.status || 500).json({
-      error:
-        error.message || "Something went wrong while generating the image.",
+      error: error.message || "Something went wrong generating the image.",
     });
   }
 });
